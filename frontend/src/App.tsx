@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './App.css'
 
 interface Community {
@@ -49,6 +49,9 @@ function App() {
   const [scanResults, setScanResults] = useState<ScanResult[]>([]);
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [showActiveRules, setShowActiveRules] = useState<boolean>(true);
+
+  // Ref for scrolling to results
+  const resultsPanelRef = useRef<HTMLDivElement>(null);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -168,6 +171,10 @@ function App() {
       if (response.ok) {
         const result = await response.json();
         setValidationResult(result);
+        // Scroll to results panel after validation
+        setTimeout(() => {
+          resultsPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
       } else {
         const error = await response.json();
         alert(`Error: ${error.message}`);
@@ -202,6 +209,10 @@ function App() {
       if (response.ok) {
         const results = await response.json();
         setScanResults(results);
+        // Scroll to results panel after scan
+        setTimeout(() => {
+          resultsPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
       } else {
         const error = await response.json();
         alert(`Error: ${error.message}`);
@@ -462,7 +473,7 @@ function App() {
               </div>
 
               {/* Results Panel */}
-              <div className="panel results-panel">
+              <div className="panel results-panel" ref={resultsPanelRef}>
                 <div className="panel-header">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>

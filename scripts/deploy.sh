@@ -1,16 +1,25 @@
 #!/bin/bash
 set -e
 
+# Load NVM if installed (for non-login shells)
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+# Also try common Node.js paths
+export PATH="/usr/local/bin:/usr/bin:$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | tail -1)/bin:$PATH"
+
 DEPLOY_DIR="/opt/flagwise"
 BACKEND_DIR="$DEPLOY_DIR/backend"
 FRONTEND_DIR="$DEPLOY_DIR/frontend"
 
 echo "=== FlagWise Deployment Script ==="
+echo "Node version: $(node --version)"
+echo "NPM version: $(npm --version)"
 
 # Install backend dependencies
 echo "Installing backend dependencies..."
 cd $BACKEND_DIR
-npm ci --production
+npm ci --omit=dev
 
 # Create .env file for backend
 echo "Configuring backend environment..."

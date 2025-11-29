@@ -11,21 +11,51 @@ interface ValidationResult {
   violatedRule?: string;
 }
 
+interface ScanResult {
+  message: string;
+  isValid: boolean;
+  violatedRule?: string;
+}
+
 type TabType = 'create' | 'manage' | 'validate';
+type ValidationMode = 'single' | 'url';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<TabType>('create');
+  const [activeTab, setActiveTab] = useState<TabType>('validate');
   const [communities, setCommunities] = useState<Community[]>([]);
   const [selectedCommunityId, setSelectedCommunityId] = useState<string>('');
   const [message, setMessage] = useState<string>('');
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  // Initialize dark mode from localStorage or default to true
+  const getInitialDarkMode = (): boolean => {
+    const savedDarkMode = localStorage.getItem('darkMode');
+    if (savedDarkMode !== null) {
+      return savedDarkMode === 'true';
+    }
+    return true; // Default to dark mode
+  };
+
+  const [darkMode, setDarkMode] = useState<boolean>(getInitialDarkMode);
 
   const [newCommunityId, setNewCommunityId] = useState<string>('');
   const [newCommunityRules, setNewCommunityRules] = useState<string>('');
   const [updateRules, setUpdateRules] = useState<string>('');
 
+  // Validation mode state
+  const [validationMode, setValidationMode] = useState<ValidationMode>('single');
+  const [communityUrl, setCommunityUrl] = useState<string>('');
+  const [urlGuidelines, setUrlGuidelines] = useState<string>('');
+  const [scanResults, setScanResults] = useState<ScanResult[]>([]);
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+  // Apply dark mode class to document and save to localStorage
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode);
+    localStorage.setItem('darkMode', String(darkMode));
+  }, [darkMode]);
 
   useEffect(() => {
     fetchCommunities();
@@ -149,146 +179,452 @@ function App() {
     }
   };
 
+  const scanCommunityUrl = async () => {
+    if (!communityUrl || !urlGuidelines) {
+      alert('Please enter both the community URL and guidelines');
+      return;
+    }
+
+    setIsScanning(true);
+    setScanResults([]);
+
+    try {
+      const response = await fetch(`${API_URL}/scan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: communityUrl,
+          guidelines: urlGuidelines.split('\n').filter(g => g.trim() !== '')
+        }),
+      });
+
+      if (response.ok) {
+        const results = await response.json();
+        setScanResults(results);
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.message}`);
+      }
+    } catch (error) {
+      console.error('Error scanning URL:', error);
+      alert('Error scanning community URL');
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
   const selectedCommunity = communities.find(c => c.id === selectedCommunityId);
+
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+  };
+
+  const navItems = [
+    { id: 'validate' as TabType, label: 'Validate', icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+    )},
+    { id: 'create' as TabType, label: 'Create', icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+    )},
+    { id: 'manage' as TabType, label: 'Manage', icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+    )}
+  ];
 
   return (
     <div className="app">
-      <h1>FlagWise - Community Content Moderator</h1>
-
-      <div className="tabs">
-        <button
-          className={`tab ${activeTab === 'create' ? 'active' : ''}`}
-          onClick={() => setActiveTab('create')}
-        >
-          Create Community
-        </button>
-        <button
-          className={`tab ${activeTab === 'manage' ? 'active' : ''}`}
-          onClick={() => setActiveTab('manage')}
-        >
-          Manage Rules
-        </button>
-        <button
-          className={`tab ${activeTab === 'validate' ? 'active' : ''}`}
-          onClick={() => setActiveTab('validate')}
-        >
-          Validate Message
-        </button>
-      </div>
-
-      <div className="tab-content">
-        {activeTab === 'create' && (
-          <div className="section">
-            <h2>Create New Community</h2>
-            <input
-              type="text"
-              placeholder="Community ID"
-              value={newCommunityId}
-              onChange={(e) => setNewCommunityId(e.target.value)}
-            />
-            <textarea
-              placeholder="Enter initial rules (one per line) - Optional"
-              value={newCommunityRules}
-              onChange={(e) => setNewCommunityRules(e.target.value)}
-              rows={6}
-            />
-            <button onClick={createCommunity}>Create Community</button>
+      {/* Header */}
+      <header className="header">
+        <div className="header-content">
+          <div className="logo-section">
+            <div className="logo">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                <line x1="4" y1="22" x2="4" y2="15"></line>
+              </svg>
+            </div>
+            <div className="logo-text">
+              <h1>Flagwise</h1>
+              <p>Automated Content Moderation</p>
+            </div>
           </div>
-        )}
 
-        {activeTab === 'manage' && (
-          <>
-            <div className="section">
-              <h2>Select Community</h2>
-              <select
-                value={selectedCommunityId}
-                onChange={(e) => setSelectedCommunityId(e.target.value)}
+          <nav className="nav-menu">
+            {navItems.map(item => (
+              <button
+                key={item.id}
+                className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(item.id)}
               >
-                <option value="">-- Select a Community --</option>
-                {communities.map(community => (
-                  <option key={community.id} value={community.id}>
-                    {community.id}
-                  </option>
-                ))}
-              </select>
-            </div>
+                {item.icon}
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </nav>
 
-            {selectedCommunity && (
-              <div className="section">
-                <h2>Manage Rules</h2>
-                <p className="helper-text">Edit the rules below (one per line)</p>
-                <textarea
-                  placeholder="Enter rules (one per line)"
-                  value={updateRules}
-                  onChange={(e) => setUpdateRules(e.target.value)}
-                  rows={12}
-                />
-                <button onClick={handleSetRules}>Update Rules</button>
-              </div>
+          <button
+            className="dark-mode-toggle"
+            onClick={toggleDarkMode}
+            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {darkMode ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+              </svg>
             )}
-          </>
-        )}
+          </button>
+        </div>
+      </header>
 
-        {activeTab === 'validate' && (
-          <>
-            <div className="section">
-              <h2>Select Community</h2>
-              <select
-                value={selectedCommunityId}
-                onChange={(e) => setSelectedCommunityId(e.target.value)}
-              >
-                <option value="">-- Select a Community --</option>
-                {communities.map(community => (
-                  <option key={community.id} value={community.id}>
-                    {community.id}
-                  </option>
-                ))}
-              </select>
-            </div>
+      {/* Main Content */}
+      <main className="main-content">
+        <div className="content-wrapper">
+          {activeTab === 'validate' && (
+            <div className="validate-layout">
+              {/* Configuration Panel */}
+              <div className="panel config-panel">
+                <div className="panel-header">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                  <span>Configuration</span>
+                </div>
+                <p className="panel-description">
+                  {validationMode === 'single'
+                    ? 'Select a community and enter a message to validate'
+                    : 'Enter your community guidelines and the URL to scan for violations'}
+                </p>
 
-            {selectedCommunity && (
-              <>
-                <div className="section">
-                  <h2>Community Rules</h2>
-                  <div className="rules-list">
-                    {selectedCommunity.rules.length === 0 ? (
-                      <p>No rules set for this community</p>
-                    ) : (
-                      <ul>
-                        {selectedCommunity.rules.map((rule, index) => (
-                          <li key={index}>{rule}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
+                {/* Validation Mode Toggle */}
+                <div className="mode-toggle">
+                  <button
+                    className={`mode-btn ${validationMode === 'single' ? 'active' : ''}`}
+                    onClick={() => setValidationMode('single')}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    Single Message
+                  </button>
+                  <button
+                    className={`mode-btn ${validationMode === 'url' ? 'active' : ''}`}
+                    onClick={() => setValidationMode('url')}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                    </svg>
+                    Community URL
+                  </button>
                 </div>
 
-                <div className="section">
-                  <h2>Validate Message</h2>
-                  <textarea
-                    placeholder="Enter message to validate"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    rows={6}
-                  />
-                  <button onClick={checkMessage} disabled={isLoading} className={isLoading ? 'loading' : ''}>
-                    {isLoading ? 'Checking...' : 'Verify Message'}
-                  </button>
+                {validationMode === 'single' ? (
+                  <>
+                    <div className="form-group">
+                      <label>Community</label>
+                      <select
+                        value={selectedCommunityId}
+                        onChange={(e) => setSelectedCommunityId(e.target.value)}
+                      >
+                        <option value="">-- Select a Community --</option>
+                        {communities.map(community => (
+                          <option key={community.id} value={community.id}>
+                            {community.id}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                  {validationResult && (
-                    <div className={`result ${validationResult.isValid ? 'valid' : 'invalid'}`}>
-                      <h3>{validationResult.isValid ? '✓ Message is Valid' : '✗ Message Violates Rules'}</h3>
+                    {selectedCommunity && selectedCommunity.rules.length > 0 && (
+                      <div className="rules-preview">
+                        <label>Active Rules</label>
+                        <ul>
+                          {selectedCommunity.rules.map((rule, index) => (
+                            <li key={index}>{rule}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <div className="form-group">
+                      <label>Message to Validate</label>
+                      <textarea
+                        placeholder="Enter the message you want to check against community rules..."
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        rows={6}
+                      />
+                      <span className="char-count">{message.length} characters</span>
+                    </div>
+
+                    <button
+                      className={`primary-btn ${isLoading ? 'loading' : ''}`}
+                      onClick={checkMessage}
+                      disabled={isLoading || !selectedCommunityId || !message}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                      {isLoading ? 'Validating...' : 'Validate Message'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="form-group">
+                      <label>Community Guidelines</label>
+                      <textarea
+                        placeholder="Paste your community guidelines here...  Example: - No hate speech or discrimination - No spam or self-promotion - Be respectful to other members - No sharing of personal information - Keep discussions on-topic"
+                        value={urlGuidelines}
+                        onChange={(e) => setUrlGuidelines(e.target.value)}
+                        rows={8}
+                      />
+                      <span className="char-count">{urlGuidelines.length} characters</span>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Community URL</label>
+                      <div className="url-input-wrapper">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                        </svg>
+                        <input
+                          type="url"
+                          placeholder="https://news.ycombinator.com or https://reddit.com/r/..."
+                          value={communityUrl}
+                          onChange={(e) => setCommunityUrl(e.target.value)}
+                        />
+                      </div>
+                      <span className="helper-text">Supports Hacker News, Reddit, and other public forums</span>
+                    </div>
+
+                    <button
+                      className={`primary-btn ${isScanning ? 'loading' : ''}`}
+                      onClick={scanCommunityUrl}
+                      disabled={isScanning || !communityUrl || !urlGuidelines}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                      </svg>
+                      {isScanning ? 'Scanning...' : 'Start Scan'}
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Results Panel */}
+              <div className="panel results-panel">
+                <div className="panel-header">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="12" y1="18" x2="12" y2="12"></line>
+                    <line x1="9" y1="15" x2="15" y2="15"></line>
+                  </svg>
+                  <span>{validationMode === 'single' ? 'Validation Result' : 'Moderation Report'}</span>
+                </div>
+                <p className="panel-description">
+                  {validationMode === 'single'
+                    ? 'Result will appear here after validation'
+                    : 'Results will appear here after scanning'}
+                </p>
+
+                {validationMode === 'single' ? (
+                  validationResult ? (
+                    <div className={`result-card ${validationResult.isValid ? 'valid' : 'invalid'}`}>
+                      <div className="result-icon">
+                        {validationResult.isValid ? (
+                          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                          </svg>
+                        ) : (
+                          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="15" y1="9" x2="9" y2="15"></line>
+                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                          </svg>
+                        )}
+                      </div>
+                      <h3>{validationResult.isValid ? 'Message is Valid' : 'Violation Detected'}</h3>
                       {!validationResult.isValid && validationResult.violatedRule && (
-                        <p><strong>Violated Rule:</strong> {validationResult.violatedRule}</p>
+                        <p className="violated-rule">
+                          <strong>Violated Rule:</strong> {validationResult.violatedRule}
+                        </p>
                       )}
                     </div>
-                  )}
+                  ) : (
+                    <div className="empty-state">
+                      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                      </svg>
+                      <p className="empty-title">No Validation Results</p>
+                      <p className="empty-description">Select a community and enter a message to validate</p>
+                    </div>
+                  )
+                ) : (
+                  scanResults.length > 0 ? (
+                    <div className="scan-results">
+                      {scanResults.map((result, index) => (
+                        <div key={index} className={`scan-result-item ${result.isValid ? 'valid' : 'invalid'}`}>
+                          <div className="scan-result-status">
+                            {result.isValid ? (
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                              </svg>
+                            ) : (
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                              </svg>
+                            )}
+                          </div>
+                          <div className="scan-result-content">
+                            <p className="scan-message">{result.message}</p>
+                            {!result.isValid && result.violatedRule && (
+                              <p className="scan-violation">Violated: {result.violatedRule}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty-state">
+                      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                      </svg>
+                      <p className="empty-title">No Scan Results</p>
+                      <p className="empty-description">Configure your guidelines and URL to start scanning</p>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'create' && (
+            <div className="single-panel-layout">
+              <div className="panel">
+                <div className="panel-header">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  <span>Create New Community</span>
                 </div>
-              </>
-            )}
-          </>
-        )}
-      </div>
+                <p className="panel-description">Set up a new community with custom moderation rules</p>
+
+                <div className="form-group">
+                  <label>Community ID</label>
+                  <input
+                    type="text"
+                    placeholder="Enter a unique community identifier"
+                    value={newCommunityId}
+                    onChange={(e) => setNewCommunityId(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Initial Rules (Optional)</label>
+                  <textarea
+                    placeholder="Enter initial rules (one per line)&#10;Example:&#10;- No hate speech or discrimination&#10;- No spam or self-promotion&#10;- Be respectful to other members"
+                    value={newCommunityRules}
+                    onChange={(e) => setNewCommunityRules(e.target.value)}
+                    rows={8}
+                  />
+                </div>
+                <button className="primary-btn" onClick={createCommunity} disabled={!newCommunityId}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  Create Community
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'manage' && (
+            <div className="single-panel-layout">
+              <div className="panel">
+                <div className="panel-header">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                  </svg>
+                  <span>Manage Community Rules</span>
+                </div>
+                <p className="panel-description">Update moderation rules for an existing community</p>
+
+                <div className="form-group">
+                  <label>Select Community</label>
+                  <select
+                    value={selectedCommunityId}
+                    onChange={(e) => setSelectedCommunityId(e.target.value)}
+                  >
+                    <option value="">-- Select a Community --</option>
+                    {communities.map(community => (
+                      <option key={community.id} value={community.id}>
+                        {community.id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedCommunity && (
+                  <>
+                    <div className="form-group">
+                      <label>Rules (one per line)</label>
+                      <textarea
+                        placeholder="Enter rules (one per line)"
+                        value={updateRules}
+                        onChange={(e) => setUpdateRules(e.target.value)}
+                        rows={12}
+                      />
+                    </div>
+                    <button className="primary-btn" onClick={handleSetRules}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                      </svg>
+                      Update Rules
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
     </div>
   )
 }

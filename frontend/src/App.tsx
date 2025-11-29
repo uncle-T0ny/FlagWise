@@ -48,6 +48,7 @@ function App() {
   const [urlGuidelines, setUrlGuidelines] = useState<string>('');
   const [scanResults, setScanResults] = useState<ScanResult[]>([]);
   const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [showActiveRules, setShowActiveRules] = useState<boolean>(true);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -245,16 +246,7 @@ function App() {
       <header className="header">
         <div className="header-content">
           <div className="logo-section">
-            <div className="logo">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
-                <line x1="4" y1="22" x2="4" y2="15"></line>
-              </svg>
-            </div>
-            <div className="logo-text">
-              <h1>Flagwise</h1>
-              <p>Automated Content Moderation</p>
-            </div>
+            <img src="/flagwise-logo.png" alt="FlagWise" className="logo-image" />
           </div>
 
           <nav className="nav-menu">
@@ -361,12 +353,32 @@ function App() {
 
                     {selectedCommunity && selectedCommunity.rules.length > 0 && (
                       <div className="rules-preview">
-                        <label>Active Rules</label>
-                        <ul>
-                          {selectedCommunity.rules.map((rule, index) => (
-                            <li key={index}>{rule}</li>
-                          ))}
-                        </ul>
+                        <button
+                          className="rules-toggle"
+                          onClick={() => setShowActiveRules(!showActiveRules)}
+                        >
+                          <span>Active Rules ({selectedCommunity.rules.length})</span>
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className={showActiveRules ? 'chevron-up' : 'chevron-down'}
+                          >
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                          </svg>
+                        </button>
+                        {showActiveRules && (
+                          <ul>
+                            {selectedCommunity.rules.map((rule, index) => (
+                              <li key={index}>{rule}</li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
                     )}
 

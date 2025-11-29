@@ -135,6 +135,32 @@ body {
   flex-shrink: 0;
 }
 
+/* Header Actions */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.github-link {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.github-link:hover {
+  background: var(--border-color);
+  color: var(--text-primary);
+}
+
 /* Dark Mode Toggle */
 .dark-mode-toggle {
   width: 40px;
